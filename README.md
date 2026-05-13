@@ -15,8 +15,10 @@ This repo is a self-contained demo. By the end, you'll have created your first s
 5. [Hands-on: Your First Stack](#5-hands-on-your-first-stack)
 6. [Navigating Your Stack](#6-navigating-your-stack)
 7. [Submitting for Review](#7-submitting-for-review)
-8. [Syncing After a Merge](#8-syncing-after-a-merge)
-9. [Cheatsheet](#9-cheatsheet)
+8. [Graphite AI Reviewer (Diamond)](#8-graphite-ai-reviewer-diamond)
+9. [The Merge Queue](#9-the-merge-queue)
+10. [Syncing After a Merge](#10-syncing-after-a-merge)
+11. [Cheatsheet](#11-cheatsheet)
 
 ---
 
@@ -319,7 +321,108 @@ Graphite pushes the updated branches and updates the open PRs.
 
 ---
 
-## 8. Syncing After a Merge
+## 8. Graphite AI Reviewer (Diamond)
+
+Graphite ships an AI code reviewer called **Diamond**. Once enabled for your repo on graphite.dev, it automatically reviews every PR you open and posts inline comments — usually within a minute of pushing.
+
+### What it actually does
+
+- **Bug detection** — null derefs, off-by-ones, missed error paths, race conditions
+- **Codebase-aware suggestions** — Diamond indexes your repo, so it can flag "you have a helper for this in `app/utils/`" or "this pattern is inconsistent with the rest of `app/api/`"
+- **Style + correctness** — uses your existing conventions, not generic lint rules
+- **Severity tags** — each comment is marked as a blocker, suggestion, or nit, so you know what to act on
+
+It's designed as a *first-pass* reviewer. The goal is that your human reviewer never has to leave a comment like "you forgot to handle the empty array case" — Diamond catches those before they see it.
+
+### Workflow
+
+1. You run `gt submit` → Diamond reviews automatically
+2. Read its comments on GitHub or in the Graphite web app
+3. Fix what's worth fixing, mark the rest as ignored
+4. Request human review when Diamond's pass is clean
+
+### Custom rules
+
+You can train Diamond on team-specific rules by adding a `.graphite/diamond.md` file:
+
+```markdown
+# Diamond rules for this repo
+
+- All API responses must include a `requestId` field.
+- Never use `console.log` outside of `app/scripts/`.
+- Prefer `Result<T, E>` over throwing exceptions in `app/core/`.
+```
+
+Diamond reads this file on every review and flags violations.
+
+### Triggering manually
+
+Diamond runs on push by default. To re-run after a change without pushing, click "Re-review" in the Graphite PR view, or:
+
+```bash
+gt ai review
+```
+
+---
+
+## 9. The Merge Queue
+
+The merge queue is Graphite's answer to "PRs that passed CI in isolation but broke `main` when they merged." It serializes merges so `main` is always green.
+
+### The problem it solves
+
+Without a queue, two PRs can both pass CI against an old `main`, both get approved, and both merge — even though their combined diff breaks the build. With many engineers, this happens constantly.
+
+### How it works
+
+1. You click **"Merge when ready"** in the Graphite web app (or run `gt merge`)
+2. The PR enters the queue instead of merging immediately
+3. Graphite rebases it onto the latest `main`
+4. CI runs against the rebased version
+5. **Only if CI passes**, the PR merges
+6. The next PR in the queue is rebased onto this new `main` and tested
+
+`main` is never broken because nothing merges without a green CI run on the exact code that's about to land.
+
+### Stacks + merge queue
+
+This is where stacks shine. When you queue the *top* of a stack, Graphite queues the whole chain — bottom-up:
+
+```
+main
+ │
+ ◯ add-notes-model    ← merges first
+ │
+ ◯ add-notes-api      ← merges second (rebased onto new main)
+ │
+ ◯ add-notes-ui       ← merges third
+```
+
+You don't have to babysit each PR. Submit the stack, queue it, walk away.
+
+### Parallel optimization
+
+For independent PRs (or sufficiently separated stacks), Graphite tests them in parallel against speculatively-rebased branches. If both pass, both merge in order. If one fails, only the failed one is bounced — the rest continue. This keeps queue throughput high on busy repos.
+
+### Configuring the queue
+
+In the Graphite web app, under **Settings → Merge queue**:
+
+- Required checks (which CI jobs must pass)
+- Merge method (squash, rebase, merge commit)
+- Max parallelism
+- Auto-dequeue rules (e.g. drop PRs that fail twice)
+
+### Useful commands
+
+```bash
+gt merge              # add the current branch (or stack) to the queue
+gt merge --skip-ci    # admin only: bypass the queue for hotfixes
+```
+
+---
+
+## 10. Syncing After a Merge
 
 Once PR #1 (`add-notes-model`) is merged into `main`:
 
@@ -347,7 +450,7 @@ Repeat after each merge until the stack is empty.
 
 ---
 
-## 9. Cheatsheet
+## 11. Cheatsheet
 
 | Task | Command |
 |---|---|
@@ -360,6 +463,8 @@ Repeat after each merge until the stack is empty.
 | Jump to a specific branch | `gt checkout <name>` |
 | Rebase the stack after a mid-stack edit | `gt stack restack` |
 | Open PRs for the whole stack | `gt stack submit` |
+| Re-run Diamond AI review | `gt ai review` |
+| Add current branch/stack to merge queue | `gt merge` |
 | Pull latest + rebase after merges | `gt sync` |
 | Delete a branch and restack | `gt branch delete <name>` |
 | Rename current branch | `gt branch rename <new-name>` |
