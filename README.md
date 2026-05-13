@@ -343,25 +343,22 @@ It's designed as a *first-pass* reviewer. The goal is that your human reviewer n
 
 ### Custom rules
 
-You can train Diamond on team-specific rules by adding a `.graphite/diamond.md` file:
+Diamond's behavior is configured at `app.graphite.com/ai-reviews` under the **Rules & exclusions** tab. Two approaches:
 
-```markdown
-# Diamond rules for this repo
+- **Custom prompts (recommended)** — write rules directly in the Graphite UI. Best for most teams.
+- **File-based rules** — point Diamond at existing repo docs via glob patterns (e.g. `CONTRIBUTING.md`, `docs/coding-standards.md`, `docs/architecture/*.md`). Best when you already maintain living documentation.
 
-- All API responses must include a `requestId` field.
-- Never use `console.log` outside of `app/scripts/`.
-- Prefer `Result<T, E>` over throwing exceptions in `app/core/`.
-```
+Example rules a team might add:
 
-Diamond reads this file on every review and flags violations.
+- "All API responses must include a `requestId` field."
+- "Never use `console.log` outside of `app/scripts/`."
+- "Prefer `Result<T, E>` over throwing exceptions in `app/core/`."
 
-### Triggering manually
+Org admin permissions are required to edit these.
 
-Diamond runs on push by default. To re-run after a change without pushing, click "Re-review" in the Graphite PR view, or:
+### Re-triggering a review
 
-```bash
-gt ai review
-```
+Diamond runs automatically on every push. To re-run on the same commit, use the **Re-review** button in the Graphite PR view — there's no CLI equivalent.
 
 ---
 
@@ -416,8 +413,9 @@ In the Graphite web app, under **Settings → Merge queue**:
 ### Useful commands
 
 ```bash
-gt merge              # add the current branch (or stack) to the queue
-gt merge --skip-ci    # admin only: bypass the queue for hotfixes
+gt merge                       # merge the PRs from trunk up to the current branch
+gt merge --dry-run             # preview what would be merged without doing it
+gt submit --merge-when-ready   # submit and mark as "merge when ready" in one shot
 ```
 
 ---
@@ -463,8 +461,8 @@ Repeat after each merge until the stack is empty.
 | Jump to a specific branch | `gt checkout <name>` |
 | Rebase the stack after a mid-stack edit | `gt stack restack` |
 | Open PRs for the whole stack | `gt stack submit` |
-| Re-run Diamond AI review | `gt ai review` |
-| Add current branch/stack to merge queue | `gt merge` |
+| Submit + mark as "merge when ready" | `gt submit --merge-when-ready` |
+| Merge PRs from trunk up to current branch | `gt merge` |
 | Pull latest + rebase after merges | `gt sync` |
 | Delete a branch and restack | `gt branch delete <name>` |
 | Rename current branch | `gt branch rename <new-name>` |
