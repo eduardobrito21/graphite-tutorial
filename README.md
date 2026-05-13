@@ -166,8 +166,7 @@ export const Note = {
 Commit it:
 
 ```bash
-git add app/models/index.js
-git commit -m "add Note model"
+gt modify -m "add Note model"
 ```
 
 ---
@@ -193,8 +192,7 @@ app.get('/notes/:userId', (req, res) => {
 Commit:
 
 ```bash
-git add app/api/index.js
-git commit -m "add GET /notes/:userId route"
+gt modify -m "add GET /notes/:userId route"
 ```
 
 ---
@@ -216,8 +214,7 @@ export function NotesList({ userId }) {
 Commit:
 
 ```bash
-git add app/ui/index.js
-git commit -m "add NotesList component"
+gt modify -m "add NotesList component"
 ```
 
 ---
@@ -274,8 +271,7 @@ gt checkout add-notes-model
 Edit `app/models/index.js` and add `title: 'string'` to the Note object. Then:
 
 ```bash
-git add app/models/index.js
-git commit -m "add title field to Note model"
+gt modify -m "add title field to Note model"
 ```
 
 Now rebase the rest of the stack on top of your fix:
@@ -286,7 +282,7 @@ gt stack restack
 
 All branches above `add-notes-model` are automatically rebased. No manual `git rebase`. The whole stack stays clean.
 
-> **Tip:** If you want to fold the fix into the existing commit instead of adding a new one, use `git commit --amend --no-edit` before running `gt stack restack`.
+> **Tip:** If you want to fold the fix into the existing commit instead of adding a new one, drop the `-m` flag — `gt modify` without a message amends the current commit in place, keeping the original message.
 
 ---
 
@@ -356,6 +352,8 @@ Repeat after each merge until the stack is empty.
 | Task | Command |
 |---|---|
 | Create a new stacked branch | `gt branch create <name>` |
+| Stage all changes + create/amend commit | `gt modify -m "message"` |
+| Amend current commit (keep message) | `gt modify` |
 | See the stack | `gt log` |
 | Move up one branch | `gt up` |
 | Move down one branch | `gt down` |
