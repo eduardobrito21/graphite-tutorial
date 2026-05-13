@@ -7,3 +7,8 @@ app.get('/users/:id', (req, res) => {
 });
 
 // Exercise: add the GET /notes/:userId route below this line
+
+app.get('/notes/:userId', (req, res) => {
+  res.json({ notes: [], userId: req.params.userId });
+});
+
