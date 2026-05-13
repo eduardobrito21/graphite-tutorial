@@ -15,10 +15,11 @@ This repo is a self-contained demo. By the end, you'll have created your first s
 5. [Hands-on: Your First Stack](#5-hands-on-your-first-stack)
 6. [Navigating Your Stack](#6-navigating-your-stack)
 7. [Submitting for Review](#7-submitting-for-review)
-8. [Graphite AI Reviewer (Diamond)](#8-graphite-ai-reviewer-diamond)
+8. [Graphite Agent (AI Reviews)](#8-graphite-agent-ai-reviews)
 9. [The Merge Queue](#9-the-merge-queue)
 10. [Syncing After a Merge](#10-syncing-after-a-merge)
 11. [Cheatsheet](#11-cheatsheet)
+12. [Beyond the basics](#12-beyond-the-basics)
 
 ---
 
@@ -149,7 +150,7 @@ Look at `app/` before you start to get a feel for the codebase.
 ### Exercise A — Create the first branch
 
 ```bash
-gt branch create add-notes-model
+gt create add-notes-model
 ```
 
 This creates a new branch stacked on `main` and checks it out.
@@ -168,7 +169,7 @@ export const Note = {
 Commit it:
 
 ```bash
-gt modify -m "add Note model"
+gt modify -am "add Note model"
 ```
 
 ---
@@ -178,7 +179,7 @@ gt modify -m "add Note model"
 Without switching back to `main`, create the next branch:
 
 ```bash
-gt branch create add-notes-api
+gt create add-notes-api
 ```
 
 Graphite stacks this on top of `add-notes-model` automatically — you're still "above" it.
@@ -194,7 +195,7 @@ app.get('/notes/:userId', (req, res) => {
 Commit:
 
 ```bash
-gt modify -m "add GET /notes/:userId route"
+gt modify -am "add GET /notes/:userId route"
 ```
 
 ---
@@ -202,7 +203,7 @@ gt modify -m "add GET /notes/:userId route"
 ### Exercise C — Stack a third branch
 
 ```bash
-gt branch create add-notes-ui
+gt create add-notes-ui
 ```
 
 Open `app/ui/index.js` and add the component at the bottom:
@@ -216,7 +217,7 @@ export function NotesList({ userId }) {
 Commit:
 
 ```bash
-gt modify -m "add NotesList component"
+gt modify -am "add NotesList component"
 ```
 
 ---
@@ -273,13 +274,13 @@ gt checkout add-notes-model
 Edit `app/models/index.js` and add `title: 'string'` to the Note object. Then:
 
 ```bash
-gt modify -m "add title field to Note model"
+gt modify -am "add title field to Note model"
 ```
 
 Now rebase the rest of the stack on top of your fix:
 
 ```bash
-gt stack restack
+gt restack
 ```
 
 All branches above `add-notes-model` are automatically rebased. No manual `git rebase`. The whole stack stays clean.
@@ -293,72 +294,69 @@ All branches above `add-notes-model` are automatically rebased. No manual `git r
 When you're ready, submit the entire stack as PRs on GitHub:
 
 ```bash
-gt stack submit
+gt submit --stack    # alias: gt ss
 ```
 
 Graphite will:
-- Push all three branches
+- Push all branches in the stack
 - Open PRs with the correct base branches (`add-notes-model` targets `main`, `add-notes-api` targets `add-notes-model`, etc.)
 - Print links to all the PRs
 
 Reviewers can review each PR independently and in parallel. You don't have to wait for PR #1 to merge before PR #2 gets reviewed.
 
-To submit only the current branch (useful for a WIP stack):
+`gt submit` on its own pushes the current branch plus everything **downstack** of it (parents). Use `--stack` when you want upstack branches included too. If you want strictly the current branch:
 
 ```bash
-gt branch submit
+gt submit --no-stack
 ```
 
 ### Updating after review feedback
 
-Make your changes, commit (or amend), then:
-
-```bash
-gt stack submit
-```
-
-Graphite pushes the updated branches and updates the open PRs.
+Make your changes, commit (or amend), then re-run `gt submit --stack`. Graphite pushes the updated branches and updates the open PRs.
 
 ---
 
-## 8. Graphite AI Reviewer (Diamond)
+## 8. Graphite Agent (AI Reviews)
 
-Graphite ships an AI code reviewer called **Diamond**. Once enabled for your repo on graphite.dev, it automatically reviews every PR you open and posts inline comments — usually within a minute of pushing.
+Graphite ships an AI code reviewer called **Graphite Agent** (you might still see the older "Diamond" branding around). Once enabled for your repo at `app.graphite.com/ai-reviews`, it automatically reviews every new PR and posts inline comments alongside your human reviewers.
 
-### What it actually does
+### What it catches
 
-- **Bug detection** — null derefs, off-by-ones, missed error paths, race conditions
-- **Codebase-aware suggestions** — Diamond indexes your repo, so it can flag "you have a helper for this in `app/utils/`" or "this pattern is inconsistent with the rest of `app/api/`"
-- **Style + correctness** — uses your existing conventions, not generic lint rules
-- **Severity tags** — each comment is marked as a blocker, suggestion, or nit, so you know what to act on
+- **Logic bugs** — the implementation doesn't match the apparent intent
+- **Missed failure modes** — unhandled errors, null derefs, empty-collection cases
+- **Security issues** — common vulnerabilities before they reach production
+- **Performance problems** — N+1 queries, accidental quadratic loops, etc.
+- **Stray code** — debug logs, commented-out blocks, things that look unintentional
 
-It's designed as a *first-pass* reviewer. The goal is that your human reviewer never has to leave a comment like "you forgot to handle the empty array case" — Diamond catches those before they see it.
+It's designed as a *first-pass* reviewer. The goal is that your human reviewer never has to leave a comment like "you forgot to handle the empty array case" — the Agent catches those before they see it.
 
 ### Workflow
 
-1. You run `gt submit` → Diamond reviews automatically
-2. Read its comments on GitHub or in the Graphite web app
-3. Fix what's worth fixing, mark the rest as ignored
-4. Request human review when Diamond's pass is clean
+1. You run `gt submit` → the Agent reviews automatically
+2. Read its inline comments on the PR (GitHub or Graphite web app), each tagged with a status (Running / Completed)
+3. Resolve, commit suggestions, or dismiss the ones that don't apply
+4. Request human review when the Agent's pass is clean
 
-### Custom rules
+### Customizing it
 
-Diamond's behavior is configured at `app.graphite.com/ai-reviews` under the **Rules & exclusions** tab. Two approaches:
+Configuration lives at `app.graphite.com/ai-reviews` under the **Rules & exclusions** tab. Two knobs:
 
-- **Custom prompts (recommended)** — write rules directly in the Graphite UI. Best for most teams.
-- **File-based rules** — point Diamond at existing repo docs via glob patterns (e.g. `CONTRIBUTING.md`, `docs/coding-standards.md`, `docs/architecture/*.md`). Best when you already maintain living documentation.
+- **Custom rules** — explicit guidelines the Agent should enforce when reviewing your code. Recommended for most teams. Written directly in the Graphite UI as targeted prompts.
+- **Exclusions** — situations where the Agent should *not* leave comments, to cut noise on issues your team doesn't care about.
 
-Example rules a team might add:
+For repos with living documentation, the Agent can also read rules from existing files in your repo (e.g. `CONTRIBUTING.md`, `docs/coding-standards.md`) via glob patterns — useful when your standards already live in markdown.
+
+Example custom rules a team might add:
 
 - "All API responses must include a `requestId` field."
 - "Never use `console.log` outside of `app/scripts/`."
 - "Prefer `Result<T, E>` over throwing exceptions in `app/core/`."
 
-Org admin permissions are required to edit these.
+> Org admin permissions are required to edit AI review settings.
 
 ### Re-triggering a review
 
-Diamond runs automatically on every push. To re-run on the same commit, use the **Re-review** button in the Graphite PR view — there's no CLI equivalent.
+The Agent runs automatically on every push. To re-run on the same commit, use the **Re-review** button in the Graphite PR view — there's no CLI equivalent.
 
 ---
 
@@ -450,26 +448,48 @@ Repeat after each merge until the stack is empty.
 
 ## 11. Cheatsheet
 
-| Task | Command |
-|---|---|
-| Create a new stacked branch | `gt branch create <name>` |
-| Stage all changes + create/amend commit | `gt modify -m "message"` |
-| Amend current commit (keep message) | `gt modify` |
-| See the stack | `gt log` |
-| Move up one branch | `gt up` |
-| Move down one branch | `gt down` |
-| Jump to a specific branch | `gt checkout <name>` |
-| Rebase the stack after a mid-stack edit | `gt stack restack` |
-| Open PRs for the whole stack | `gt stack submit` |
-| Submit + mark as "merge when ready" | `gt submit --merge-when-ready` |
-| Merge PRs from trunk up to current branch | `gt merge` |
-| Pull latest + rebase after merges | `gt sync` |
-| Delete a branch and restack | `gt branch delete <name>` |
-| Rename current branch | `gt branch rename <new-name>` |
+| Task | Command | Alias |
+|---|---|---|
+| Create a new stacked branch | `gt create <name>` | `gt c` |
+| Create branch + stage all + commit | `gt create <name> -am "msg"` | `gt c -am` |
+| Stage all + amend current commit | `gt modify -am "msg"` | `gt m -am` |
+| Amend (keep current message) | `gt modify -a` | `gt m -a` |
+| Add a new commit on the same branch | `gt modify -cam "msg"` | `gt m -cam` |
+| See the stack | `gt log` / `gt log short` | `gt ls` |
+| Move up / down a branch | `gt up` / `gt down` | `gt u` / `gt d` |
+| Jump to a specific branch | `gt checkout <name>` | `gt co` |
+| Rebase the stack after a mid-stack edit | `gt restack` | `gt r` |
+| Open/update PRs for the whole stack | `gt submit --stack` | `gt ss` |
+| Submit + mark as "merge when ready" | `gt submit -m` | |
+| Merge PRs from trunk up to current branch | `gt merge` | `gt mg` |
+| Preview a merge without doing it | `gt merge --dry-run` | |
+| Pull latest, prune merged, restack | `gt sync` | |
+| Fetch a teammate's stack | `gt get <branch>` | |
+| Undo the last Graphite mutation | `gt undo` | |
+| Delete a branch (restacks children) | `gt delete <name>` | `gt dl` |
+| Rename current branch | `gt rename <new-name>` | `gt rn` |
+
+---
+
+## 12. Beyond the basics
+
+Once your friend is comfortable with the flow above, here are commands worth knowing:
+
+- **`gt fold`** — collapse the current branch into its parent. Useful when you split too aggressively and realize two branches should have been one.
+- **`gt split`** — the opposite: break a branch into multiple branches (by commit or by file). Useful after the fact when you crammed too much into one branch.
+- **`gt squash`** — squash all commits on the current branch into one.
+- **`gt absorb`** — distribute staged changes into the relevant downstack commits automatically (think `git absorb`).
+- **`gt move --onto <branch>`** — re-parent the current branch onto a different branch. Lets you restructure a stack.
+- **`gt reorder`** — interactively reorder branches in a stack.
+- **`gt get <branch>`** — fetch and check out a teammate's stack locally so you can review or build on it.
+- **`gt freeze`** / **`gt unfreeze`** — protect a branch from accidental restacks (e.g. a long-running shared branch).
+- **`gt track`** / **`gt untrack`** — start/stop tracking an existing Git branch with Graphite.
+- **`gt undo`** — undo the most recent Graphite mutation. Your safety net.
 
 ---
 
 ## Further reading
 
-- [Graphite docs](https://graphite.dev/docs)
-- [Why stack?](https://graphite.dev/blog/stacked-prs)
+- [Graphite docs](https://graphite.com/docs)
+- [Command reference](https://graphite.com/docs/command-reference)
+- [LLM-friendly full docs](https://graphite.com/docs/llms-full.txt)
