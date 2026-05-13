@@ -5,3 +5,9 @@ export function UserProfile({ userId }) {
 }
 
 // Exercise: add the NotesList component below this line
+
+
+export function NotesList({ userId }) {
+  return `<ul id="notes-${userId}"></ul>`;
+}
+
