@@ -7,3 +7,10 @@ export const User = {
 };
 
 // Exercise: add the Note model below this line
+
+export const Note = {
+  id: 'string',
+  userId: 'string',
+  body: 'string',
+  createdAt: 'Date',
+};
